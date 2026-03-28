@@ -384,7 +384,6 @@ git clone https://github.com/user/homelab-vlan-refactor-configs.git
 cd configs/fortinet
 # Adapter fg60f-base.conf à votre environnement
 ```
-```
 
 ---
 
