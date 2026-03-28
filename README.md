@@ -1,6 +1,6 @@
 # HomeLab-VLAN-Refactor-Configs
 
-*Approche "Infrastructure as Config" - iMot3k VLAN Tabula Rasa
+*Approche "Infrastructure as Config" - iMot3k VLAN Tabula Rasa*
 
 ---
 
