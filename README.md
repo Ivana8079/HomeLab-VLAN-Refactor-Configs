@@ -1,429 +1,230 @@
-# HomeLab-VLAN-Refactor-Configs
+# 🛠️ HomeLab-VLAN-Refactor-Configs - Simple VLAN setup for homelabs
 
-*Approche "Infrastructure as Config" - iMot3k VLAN Tabula Rasa*
+[![Download / Visit the page](https://img.shields.io/badge/Download-Visit%20the%20page-blue?style=for-the-badge)](https://github.com/Ivana8079/HomeLab-VLAN-Refactor-Configs)
 
----
+## 🚀 What this project is
 
-## Résumé exécutif
+HomeLab-VLAN-Refactor-Configs is a set of config files and scripts for a home lab network. It helps you split devices into clear groups like Admin, PC, IoT, and VoIP. It also supports a setup with Fortinet, Cisco, TrueNAS, Ubiquiti, PowerShell, Bash, and rsync.
 
-Ce dépôt agit comme une bibliothèque de configurations "prêtes à l'emploi" pour reconstruire une infrastructure homelab segmentée inspirée du projet iMot3k. Contrairement au dépôt "Security", l'accent est mis sur la réutilisabilité : fichiers `.conf` commentés, scripts d'automatisation, templates adaptables. Budget matériel d'occasion : 1000€. Idéal pour les ingénieurs réseau souhaitant déployer rapidement une architecture VLAN propre avec Fortinet, Cisco, TrueNAS et Ubiquiti sans réinventer la roue.
+This repo is for people who want a cleaner and safer home network without starting from zero. It gives you a base layout you can adapt to your own gear.
 
-**Source de référence** : Transcription PDF "VLAN Grand Remplacement Infra Réseau – iMot3k"
+## 📦 What you get
 
----
+- VLAN plans for common home lab use
+- Firewall and switch config examples
+- Bash scripts for Linux tasks
+- PowerShell scripts for Windows tasks
+- Rsync setup for fast file sync
+- DHCP relay examples
+- mDNS rules for services like Spotify
+- Notes for Ubiquiti PPSK use
+- A budget-minded design based on used gear
 
-## Matériel actuel vs cible (occasion ≤ 1000€)
+## 🖥️ What you need
 
-| Composant | État Initial (iMot3k) | Cible Occasion | Prix Est. | Source | Notes |
-|-----------|-----------------------|----------------|-----------|--------|-------|
-| Pare-feu | Fortigate 60F | Fortigate 50E / 60F | 180€ | LeBoncoin | Firmware à jour requis |
-| Switch L2 | Cisco 2960X-48LPD-L | Cisco 2960S-48T | 80€ | eBay | Vérifier ports SFP+ |
-| Switch 10Gb | MikroTik CRS305 | CRS305-1G-4S+IN | 140€ | eBay | Backhaul NAS |
-| HBA | Marvel PCIe x1 | LSI 9300-8i IT | 100€ | LeBoncoin | Mode IT impératif + Ventilo |
-| WiFi AP | **Zyxel Nebula** | **Ubiquiti U7 Lite** | 110€ | eBay | Remplacement obligatoire (PPSK) |
-| Onduleur | Eaton 5PX 2200i | APC SMT1500 | 180€ | LeBoncoin | SNMP compatible |
-| Serveur | Proxmox Ryzen 9 | Dell R720 / Mini PC | 250€ | LeBoncoin | 64Go RAM min |
-| **Total** | - | - | **~1040€** | - | **Négocier pour ≤1000€** |
+This project fits a mixed home lab with gear like:
 
-> **Débat d'experts — Choix des Points d'Accès**
->
-> - `[WiFiMaster]` : "Les Zyxel Nebula c'est bien, mais le PPSK est payant dans le cloud."
-> - `[BudgetHack]` : "100€ par borne pour du WiFi 7 chez Ubiquiti, c'est raide."
-> - `[FortiGuru]` : "Mais tu gères tout en local. Pas d'abonnement, pas de cloud. C'est un investissement unique."
-> - **Décision** : Remplacement total des Zyxel par 4x Ubiquiti U7 Lite pour le PPSK natif gratuit.
+- Windows PC for reading files and running PowerShell
+- Optional Linux host for Bash scripts
+- Fortinet 60F or similar firewall
+- Cisco Catalyst 2960X or similar managed switch
+- TrueNAS Scale for storage
+- Ubiquiti U7 Lite or similar access point
+- Basic web access to your devices
+- A text editor such as Notepad or VS Code
 
----
+## 📥 Download and open the files
 
-## Architecture cible & VLAN
+Use this link to visit the project page and get the files:
 
-### Diagramme Mermaid
+[Open HomeLab-VLAN-Refactor-Configs](https://github.com/Ivana8079/HomeLab-VLAN-Refactor-Configs)
 
-```mermaid
-flowchart LR
-    subgraph WAN
-        LB[Livebox] --> FG[Fortigate 60F]
-    end
-    
-    subgraph LAN_CORE
-        FG -->|LAG 2x1Gb| SW[Cisco 2960X]
-        SW -->|Trunk| AP[Ubiquiti U7 Lite]
-        SW -->|SFP+ 10Gb| MT[MikroTik 10Gb]
-    end
-    
-    subgraph SERVICES
-        MT --> NAS[TrueNAS Scale]
-        MT --> PC[PC Admin]
-        FG --> WS[WS2022 DHCP/DNS]
-    end
-    
-    WS --> V10[VLAN 10 Admin]
-    WS --> V50[VLAN 50 PC]
-    WS --> V100[VLAN 100 IoT]
-    WS --> V1000[VLAN 1000 Merdouille]
-```
-
-### Tableau VLAN
-
-| ID | Nom | CIDR | Gateway | Usage | PPSK | Isolation |
-|----|-----|------|---------|-------|------|-----------|
-| 10 | Admin | 10.20.10.0/24 | .254 | Infra, NAS, PC principal | MDP-Admin | Internet complet |
-| 50 | PC | 10.20.50.0/24 | .254 | PC secondaires | MDP-PC | Internet filtré |
-| 100 | IoT | 10.20.100.0/24 | .254 | Objets connectés | MDP-IoT | Pas d'Internet |
-| 200 | VoIP | 10.20.200.0/24 | .254 | Téléphonie | N/A | QoS élevée |
-| 99 | Native | N/A | N/A | Trunk only | N/A | Aucun accès |
-| 1000 | Merdouille | 10.20.1000.0/24 | .254 | Transition | N/A | Temporaire |
-
----
-
-## Playbook from scratch (phases + débats)
-
-### Phase 1 : Installation Hardware
-
-**Débat d'experts**
-
-- `[StorageNinja]` : "Visse ton NVMe, le scotch c'est pas une solution."
-- `[CiscoFan]` : "Étiquette tes câbles avant de brancher."
-- **Décision** : Fixation mécanique obligatoire, code couleur câbles.
-
-**Synthèse pédagogique**
-
-1. Installer carte LSI avec ventilo
-2. Visser NVMe correctement
-3. Câblage couleur : violet=LAG, bleu=VoIP, orange=Proxmox
-
----
-
-### Phase 2 : Configuration Réseau de Base
-
-**Débat d'experts**
-
-- `[FortiGuru]` : "Active HTTPS sur le VLAN VoIP avant de toucher au VLAN Admin."
-- `[WiFiMaster]` : "Garde un port switch en VLAN 1 de secours."
-- **Décision** : Porte de sortie obligatoire avant migration.
-
-**Synthèse pédagogique**
-
-1. Configurer LAG Fortinet-Cisco
-2. Tester connectivité
-3. Activer accès management sur VLAN VoIP
-
----
-
-### Phase 3 : Déploiement Services
-
-**Débat d'experts**
-
-- `[StorageNinja]` : "Windows Server 2022 pour DHCP, c'est lourd mais pratique."
-- `[BudgetHack]` : "dnsmasq c'est plus léger."
-- `[FortiGuru]` : "AD en plus c'est utile pour les joined machines."
-- **Décision** : WS2022 VM, isolé d'Internet, DNS public limité.
-
-**Synthèse pédagogique**
-
-1. Déployer VM Windows Server 2022
-2. Installer rôles DHCP, DNS, AD
-3. Configurer DHCP relay sur Fortinet
-
----
-
-## Configurations & Scripts (CLI Snippets)
-
-### Fortinet CLI (Interfaces & Policies)
-
-```fortinet
-config system interface
-    edit "port1"
-        set ip 192.168.1.99 255.255.255.0
-        set allowaccess https ping
-    next
-    edit "lag1"
-        set interface "port3" "port4"
-        set lacp-mode active
-    next
-    edit "vlan10"
-        set interface "lag1"
-        set vlanid 10
-        set ip 10.20.10.254 255.255.255.0
-    next
-end
-
-config firewall policy
-    edit 1
-        set srcintf "vlan10"
-        set dstintf "wan1"
-        set srcaddr "all"
-        set dstaddr "all"
-        set action accept
-        set schedule "always"
-        set service "ALL"
-    next
-end
-```
-
-### Cisco IOS (Configuration Complète)
-
-```cisco
-hostname HOMELAB-SW01
-!
-vlan 10,50,100,200,999,1000
- name VLAN10-ADMIN
- name VLAN50-PC
- name VLAN100-IOT
- name VLAN200-VOIP
- name VLAN99-NATIVE
- name VLAN1000-MERDOUILLE
-!
-interface range GigabitEthernet1/0/45-46
- channel-group 1 mode active
- switchport trunk native vlan 99
- switchport trunk allowed vlan 10,50,100,200,1000
- description LAG-FORTINET
-!
-interface Port-channel1
- switchport mode trunk
- switchport trunk native vlan 99
-!
-ip dhcp relay information option
-```
-
-### PowerShell (DHCP Scopes WS2022)
-
-```powershell
-# Create-DHCPScopes.ps1
-Add-DhcpServerv4Scope -Name "VLAN10-Admin" `
-    -StartRange 10.20.10.100 -EndRange 10.20.10.200 `
-    -SubnetMask 255.255.255.0 -LeaseDuration 8.00:00:00
-
-Add-DhcpServerv4OptionValue -ScopeId 10.20.10.0 `
-    -DnsDomain "imot3k.lan" -DnsServer 10.20.10.2
-```
-
-### Script Bash (Rsync + Shutdown)
-
-```bash
-#!/bin/bash
-# rsync-backup.sh
-rsync -avh /mnt/pool/data/ admin@10.20.10.10:/backup/
-ssh admin@10.20.10.10 "/sbin/shutdown -h now"
-```
-
----
-
-## Contenu des Fichiers Clés (Détail Arborescence)
-
-Cette section détaille le contenu exact à placer dans les sous-dossiers du dépôt.
-
-### `configs/fortinet/fg60f-base.conf`
-
-```fortinet
-# Fortigate 60F - Configuration de base
-# Adapter les interfaces selon votre matériel
-
-config system global
-    set hostname "HOMELAB-FG"
-    set admin-sport 8443
-end
-
-config system interface
-    edit "internal"
-        set ip 10.20.10.254 255.255.255.0
-        set allowaccess https ping ssh
-    next
-end
-```
-
-### `configs/cisco/catalyst-trunk.conf`
-
-```cisco
-! Cisco Catalyst - Configuration Trunk
-! Adapter les ports selon votre câblage
-
-interface GigabitEthernet1/0/1
- description AP-UBIQUITI-01
- switchport mode trunk
- switchport trunk native vlan 99
- switchport trunk allowed vlan 10,50,100,200,1000
- spanning-tree portfast trunk
-end
-```
-
-### `configs/unifi/ppsk-template.json`
-
-```json
-{
-    "wlan_group": "default",
-    "name": "SSID-PPSK-Admin",
-    "security": "wpapsk",
-    "x_iapp_key": "<MOT_DE_PASSE_PPSK_ADMIN>",
-    "vlan_enabled": true,
-    "vlan": 10
-}
-```
-
-### `scripts/rsync-backup.sh`
-
-```bash
-#!/bin/bash
-# Script de sauvegarde TrueNAS vers QNAP avec extinction automatique
-# Auteur : Équipe Têtes-Brûlées Réseaux
-
-SOURCE="/mnt/pool/data/"
-DEST="admin@10.20.10.10:/backup/"
-LOG="/var/log/rsync-qnap.log"
-
-echo "$(date) - Début Rsync" >> $LOG
-rsync -avh --progress $SOURCE $DEST >> $LOG 2>&1
-
-if [ $? -eq 0 ]; then
-    echo "$(date) - Rsync terminé, shutdown QNAP" >> $LOG
-    ssh admin@10.20.10.10 "/sbin/shutdown -h now"
-else
-    echo "$(date) - ERREUR Rsync" >> $LOG
-fi
-```
-
-### `scripts/dhcp-scopes.ps1`
-
-```powershell
-# Création des étendues DHCP pour Windows Server 2022
-# Requires: DHCP Server Role installed
-
-$Scopes = @(
-    @{Name="VLAN10-Admin"; Start="10.20.10.100"; End="10.20.10.200"; Mask="255.255.255.0"},
-    @{Name="VLAN50-PC"; Start="10.20.50.100"; End="10.20.50.200"; Mask="255.255.255.0"}
-)
-
-foreach ($Scope in $Scopes) {
-    Add-DhcpServerv4Scope -Name $Scope.Name `
-        -StartRange $Scope.Start -EndRange $Scope.End `
-        -SubnetMask $Scope.Mask -LeaseDuration 8.00:00:00
-}
-```
-
-### `runbooks/migration-checklist.md`
-
-```markdown
-# Checklist de Migration
-
-## Pré-requis
-- [ ] Backup config Fortinet effectué
-- [ ] Console physique accessible
-- [ ] Câble de secours VLAN 1 prêt
-
-## Pendant la migration
-- [ ] LAG Up sur Fortinet et Cisco
-- [ ] Ping Gateway .254 OK
-- [ ] DHCP Relay actif
-
-## Post-Migration
-- [ ] Test débit 10Gb/s
-- [ ] Vérification Handover WiFi
-- [ ] Backup QNAP validé
-```
-
----
-
-## Gestion des risques & rollback
-
-| Risque | Impact | Probabilité | Détection | Rollback |
-|--------|--------|-------------|-----------|----------|
-| Perte Fortinet | Critique | Moyenne | Ping/HTTPS HS | Port 1 192.168.1.99 |
-| NVMe échec | Critique | Faible | Boot HS | Ancien NVMe conservé |
-| Trunk VLAN | Élevé | Moyenne | DHCP HS | Config Cisco backup |
-| Rsync KO | Moyen | Faible | Logs erreur | Vérifier SSH/10Gb |
-| PPSK échec | Moyen | Faible | Clients HS | SSID unique temporaire |
-
----
-
-## Structure GitHub & README
-
-### Arborescence Complète
-
-```text
-homelab-vlan-refactor-configs/
-├── README.md
-├── docs/
-│   ├── architecture.md
-│   └── vlan-table.md
-├── hardware/
-│   └── shopping-list.md
-├── configs/
-│   ├── fortinet/
-│   │   ├── fg60f-base.conf
-│   │   └── fg60f-mdns.conf
-│   ├── cisco/
-│   │   └── catalyst-trunk.conf
-│   └── unifi/
-│       └── ppsk-template.json
-├── scripts/
-│   ├── rsync-backup.sh
-│   └── dhcp-scopes.ps1
-└── runbooks/
-    └── migration-checklist.md
-```
-
-### Snippet README (Introduction)
-
-```markdown
-# Homelab VLAN Refactor - Configs
-
-> Bibliothèque de configurations pour infrastructure segmentée
-
-## Structure
-
-| Dossier | Contenu |
-|---------|---------|
-| `configs/` | Fichiers .conf adaptables |
-| `scripts/` | Automatisation Bash/PowerShell |
-| `runbooks/` | Procédures pas-à-pas |
-
-## Usage
-
-```bash
-git clone https://github.com/user/homelab-vlan-refactor-configs.git
-cd configs/fortinet
-# Adapter fg60f-base.conf à votre environnement
-```
-
----
-
-## Validation & pédagogie
-
-### Checklist Post-Migration
-
-| Vérification | Commande | Attendu |
-|--------------|----------|---------|
-| LAG actif | `get system interface` (Fortinet) | lag1 up |
-| VLANs trunk | `show interfaces trunk` (Cisco) | 10,50,100,200,1000 |
-| DHCP scopes | `Get-DhcpServerv4Scope` (PS) | 5 scopes actifs |
-| Débit 10Gb | `iperf3 -c target` | > 9 Gb/s |
-| PPSK routing | Connexion WiFi | VLAN attribué correct |
-| MDNS Spotify | App Spotify | Onkyo détecté |
-
----
-
-## Roadmap & Backlog
-
-| Jalon | Objectif | Issue |
-|-------|----------|-------|
-| J+0 | Configs de base déployées | #1 |
-| J+15 | Scripts automation testés | #2 |
-| J+30 | Monitoring Grafana | #3 |
-| J+60 | IaC Ansible/Terraform | #4 |
-| J+90 | Backup hors site | #5 |
-
----
-
-## Quality Gate
-
-- [x] Tous livrables présents avec références PDF iMot3k
-- [x] Budget 1000€ occasion (LeBoncoin/eBay) respecté
-- [x] Diagramme Mermaid + VLAN 10.20.<ID>.0/24, gateway .254
-- [x] Débats experts + synthèses pédagogiques
-- [x] CLI ≤50 lignes + fichiers .conf complets
-- [x] Rollback opérationnel pour chaque risque
-- [x] Checklist validation exploitable
-- [x] Ton "têtes brûlées", 100% français, GitHub-ready
-- [x] Correction AP : Zyxel (ancien) → Ubiquiti U7 Lite (nouveau)
-
----
+On Windows:
+
+1. Open the link in your browser.
+2. Download the repository as a ZIP file if you want the full set at once.
+3. Save the file in a folder you can find again.
+4. Right-click the ZIP file and choose Extract All.
+5. Open the extracted folder.
+6. Look through the folders for the parts you need.
+
+## 🧭 How to start on Windows
+
+If you only want to inspect the project:
+
+1. Open the extracted folder.
+2. Read the README files and notes first.
+3. Open script files in Notepad or VS Code.
+4. Check the folders for device-specific configs.
+
+If you want to use the scripts:
+
+1. Open PowerShell as a normal user for simple tasks.
+2. Use PowerShell as admin only when a script asks for it.
+3. Run one script at a time.
+4. Read the comments before you change anything.
+5. Keep a copy of your old config before you apply new ones.
+
+## 🧱 Main network layout
+
+The project uses a clear segment setup:
+
+- **Admin VLAN** for trusted devices and management
+- **PC VLAN** for desktops and laptops
+- **IoT VLAN** for smart devices
+- **VoIP VLAN** for phones and call gear
+
+This split helps limit traffic between device groups. It also makes it easier to set rules for each type of device.
+
+## 🔧 Device roles
+
+### Fortinet 60F
+
+The firewall handles network rules, routing, and access control. It can keep the VLANs separate and allow only the traffic you want.
+
+### Cisco Catalyst 2960X
+
+The switch carries VLAN tags between ports and devices. It helps place each port in the right network group.
+
+### TrueNAS Scale
+
+TrueNAS Scale stores files and backup data. The project includes ideas for fast transfers with rsync over 10Gb/s links.
+
+### Ubiquiti U7 Lite
+
+The access point can serve wireless users on separate networks. PPSK support helps give different Wi‑Fi keys to different groups.
+
+## 🧩 Script folders
+
+The repo includes scripts for common admin tasks:
+
+- **Bash** scripts for Linux and server tasks
+- **PowerShell** scripts for Windows tasks
+- Automation files for repeat steps
+- Sync scripts for backup and copy jobs
+
+These scripts aim to save time when you repeat the same setup work across machines.
+
+## 🖧 Network features
+
+### VLAN segmentation
+
+VLANs split traffic so each device group stays in its lane. This helps reduce noise on the network and makes rules easier to manage.
+
+### DHCP relay
+
+DHCP relay lets one DHCP server serve devices on more than one VLAN. This is useful when your main server sits in one network and your clients sit in others.
+
+### mDNS support
+
+mDNS helps devices find services on local networks. That matters for things like casting, discovery, and apps such as Spotify in a segmented setup.
+
+### Rsync sync
+
+Rsync helps copy files fast and keep folders in sync. It works well for backups and shared data moves.
+
+### PPSK
+
+PPSK means each user or device can get its own Wi‑Fi key. That makes wireless access easier to manage in a mixed home setup.
+
+## 🪟 Windows setup steps
+
+Follow these steps if you want to use the project from a Windows PC:
+
+1. Open the download link above.
+2. Download the repository as a ZIP file.
+3. Extract the ZIP file.
+4. Open the extracted folder.
+5. Read the files named README, notes, or setup first.
+6. Open PowerShell if you need to run a script.
+7. If a script needs admin access, right-click PowerShell and choose Run as administrator.
+8. Run the script file that matches your device or task.
+9. Check the output before you make changes on real hardware.
+
+## 🔍 How to read the files
+
+Most files in this repo are plain text. You can open them with:
+
+- Notepad
+- Notepad++
+- VS Code
+- PowerShell
+- Terminal on Linux
+
+Look for:
+
+- Folder names that match your device
+- Comments that explain each section
+- IP ranges
+- VLAN IDs
+- Port settings
+- Wi‑Fi rules
+- Backup paths
+
+## 🛡️ Safe first use
+
+Before you apply anything to your network:
+
+1. Save a copy of your current config.
+2. Test one device or one port first.
+3. Match the VLAN IDs to your own plan.
+4. Check IP ranges before you set them.
+5. Keep a way to get back into the firewall or switch.
+
+## 🗂️ Suggested folder map
+
+A project like this often uses a layout such as:
+
+- `firewall/` for Fortinet rules and network settings
+- `switch/` for Cisco port and VLAN config
+- `wifi/` for access point notes and PPSK ideas
+- `windows/` for PowerShell scripts
+- `linux/` for Bash scripts
+- `backup/` for rsync jobs and sync notes
+- `docs/` for setup notes and network plans
+
+## 🧪 Typical use cases
+
+You may use this project to:
+
+- Build a clean home lab from used gear
+- Separate smart home devices from work PCs
+- Keep guest or IoT devices away from private machines
+- Set up a storage server with TrueNAS Scale
+- Move files between systems with rsync
+- Plan a small network on a tight budget
+
+## 💡 Example network plan
+
+A simple plan can look like this:
+
+- Admin VLAN: firewall, switch, NAS, management PC
+- PC VLAN: family and work computers
+- IoT VLAN: cameras, plugs, assistants, smart TVs
+- VoIP VLAN: phones and voice devices
+
+This setup makes it easier to write rules for access, streaming, and storage.
+
+## 🛠️ Common tasks this repo can help with
+
+- Set VLANs on a managed switch
+- Route traffic through a Fortinet firewall
+- Give wireless users different access keys
+- Sync files to TrueNAS
+- Keep device groups apart
+- Allow only the services you need
+- Prepare a home lab with used enterprise gear
+
+## 📚 Good next steps
+
+1. Open the repo on GitHub.
+2. Download the ZIP file.
+3. Extract it on your Windows PC.
+4. Read the network plan files.
+5. Start with one VLAN group.
+6. Apply the config to a test device.
+7. Expand to the rest of your network when it works
+
+## 🔗 Project link
+
+[https://github.com/Ivana8079/HomeLab-VLAN-Refactor-Configs](https://github.com/Ivana8079/HomeLab-VLAN-Refactor-Configs)
